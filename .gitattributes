@@ -1,0 +1,6 @@
+# Ignore CSS stats
+*.css linguist-vendored
+
+# Ignore JavaScript stats
+*.js linguist-vendored
+*.mjs linguist-vendored
