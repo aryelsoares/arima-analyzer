@@ -35,7 +35,13 @@ export function CSVInput({ setHasData, loading, setLoading, config}: CSVInputPro
             try {
                 resetData();
 
-                const baseName = file.name.replace(/\.csv$/i, "");
+                let baseName = file.name.replace(/\.csv$/i, "");
+                const charAmount = 30;
+
+                if (baseName.length > charAmount) {
+                    baseName = baseName.slice(0, charAmount) + "...";
+                }
+
                 DATA.fileName = baseName;
 
                 const text = reader.result as string;

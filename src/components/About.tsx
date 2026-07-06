@@ -84,7 +84,7 @@ export default function About({ setHasData, config, setConfig }: AboutProps) {
         <section className="w-full text-center">
             {/* Title */}
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-semibold mb-12">
-                Welcome to <span className="text-blue-100">ARIMA Analyser!</span>
+                Welcome to <span className="text-blue-100">ARIMA Analyzer!</span>
             </h1>
 
             {/* Description */}

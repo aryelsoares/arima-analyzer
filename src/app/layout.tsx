@@ -8,7 +8,7 @@ import Footer from "../components/Footer";
 const poppins = Poppins({ subsets: ['latin'], weight: ['400', '600'] });
 
 export const metadata: Metadata = {
-  title: "ARIMA Analyser",
+  title: "ARIMA Analyzer",
   description: "ARIMA based time series analysis tool",
   authors: [{ name: "Aryel Soares "}],
   keywords: ["ARIMA", "SARIMA", "Time Series", "Data Analysis", "Data Science"]
