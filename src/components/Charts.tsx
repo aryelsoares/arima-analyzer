@@ -8,7 +8,7 @@ const Plot = dynamic(() => import("react-plotly.js"), {
 });
 
 import { DATA } from "../utils/data";
-import { Stats, Tester } from "../utils/statistics";
+import { Stats } from "../utils/statistics";
 
 const gridColor = "#3a3d45";
 const textColor = "#f4f6f8";
@@ -33,7 +33,7 @@ export function TimeSeriesChart() {
         <Plot
             data={data}
             layout={layout}
-            style={{ width: "100%", height: "400px" }}
+            style={{ width: "900px", height: "400px" }}
             useResizeHandler
         />
     );
@@ -100,8 +100,7 @@ export function DistChart() {
         paper_bgcolor: "transparent",
         plot_bgcolor: "transparent",
         font: { color: textColor },
-        bargap: 0.05,
-        legend: { orientation: "h" }
+        bargap: 0.05
     };
 
     return (
@@ -134,7 +133,7 @@ export function RollingDataChart() {
     ));
 
     const layout: Partial<Layout> = {
-        title: { text: "Rolling Data" },
+        title: { text: "Rolling Statistics" },
         xaxis: { title: { text: DATA.xName }, gridcolor: gridColor },
         yaxis: { title: { text: DATA.yName }, gridcolor: gridColor },
         paper_bgcolor: "transparent",
@@ -179,7 +178,6 @@ export function StationaryGauge() {
         type: "indicator",
         mode: "gauge+number",
         value: score,
-        title: { text: "Stationarity Score" },
 
         gauge: {
             axis: { range: [0, 1] },
@@ -198,7 +196,7 @@ export function StationaryGauge() {
     }];
 
     const layout: Partial<Layout> = {
-        title: { text: "Gauge 1" },
+        title: { text: "Stationarity Score" },
         paper_bgcolor: "transparent",
         font: { color: textColor },
 
@@ -238,7 +236,6 @@ export function SeasonalGauge() {
         type: "indicator",
         mode: "gauge+number",
         value: score,
-        title: { text: "Seasonality Score" },
 
         gauge: {
             axis: { range: [0, 1] },
@@ -257,7 +254,7 @@ export function SeasonalGauge() {
     }];
 
     const layout: Partial<Layout> = {
-        title: { text: "Gauge 2" },
+        title: { text: "Seasonality Score" },
         paper_bgcolor: "transparent",
         font: { color: textColor },
 

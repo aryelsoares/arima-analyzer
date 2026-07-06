@@ -1,4 +1,5 @@
 // Residuals
+"use client";
 
 import { DATA } from "../utils/data";
 import { MetricChart } from "./Charts";
@@ -17,7 +18,7 @@ export default function Metric() {
             {/* Title */}
             <h2 className="px-[9%] py-8 bg-bg-second text-3xl font-semibold text-center w-full">Metrics</h2>
 
-            <div className="flex items-center">
+            <div className="w-full flex items-center justify-center">
                 {/* Table */}
                 <table className="border text-lg">
                     <thead>

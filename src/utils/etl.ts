@@ -62,9 +62,18 @@ function applyMissingValues(data: number[], missingValues: MissingValues): numbe
         if (!Number.isNaN(result[i])) continue;
 
         switch (missingValues) {
-            case MissingValues.BACKWARD_FILL:
-                result[i] = i > 0 ? result[i - 1] : NaN;
+            case MissingValues.FORWARD_FILL: {
+                let j = i - 1;
+                while (j >= 0 && Number.isNaN(result[j])) j--;
+                result[i] = j >= 0 ? result[j] : NaN;
                 break;
+            }
+            case MissingValues.BACKWARD_FILL: {
+                let j = i + 1;
+                while (j < result.length && Number.isNaN(result[j])) j++;
+                result[i] = j < result.length ? result[j] : NaN;
+                break;
+            }
             case MissingValues.AVERAGE:
                 result[i] = stats.mean();
                 break;
@@ -86,9 +95,6 @@ function applyMissingValues(data: number[], missingValues: MissingValues): numbe
 
                 break;
             }
-            default: // FOWARD_FILL
-                result[i] = i < result.length - 1 ? result[i + 1] : NaN;
-                break;
         }
     }
 
@@ -117,9 +123,6 @@ function applyOutliers(data: number[], outliers: Outliers): number[] {
         const x = result[i];
 
         switch (outliers) {
-            case Outliers.SET_MEDIAN:
-                result[i] = median;
-                break;
             case Outliers.IQR_SET_MEDIAN:
                 if (x < lowerIQR || x > upperIQR) {
                     result[i] = median;
@@ -144,6 +147,8 @@ function applyOutliers(data: number[], outliers: Outliers): number[] {
 
 // Transform
 function applyTransform(data: number[], transform: Transform): number[] {
+    if (transform === Transform.NONE) return [...data];
+
     switch (transform) {
         case Transform.LOG:
             return data.map(v => (v > 0 ? Math.log(v) : 0));
@@ -154,14 +159,11 @@ function applyTransform(data: number[], transform: Transform): number[] {
             if (min === max) return data.map(() => 0);
 
             return data.map(v => (v - min) / (max - min));
-        default:
-            return data;
     }
 }
 
 // ETL
 export function etl(x: Date[], y: number[]) {
-    
     /* Missing Values */
     const sanitized = applyMissingValues(y, DATA.config.missingValues);
 
@@ -172,6 +174,7 @@ export function etl(x: Date[], y: number[]) {
     let Y = series.data;
 
     /* Outliers */
+    Y = applyOutliers(Y, DATA.config.outliers);
 
     /* Transform */
     Y = applyTransform(Y, DATA.config.transform);

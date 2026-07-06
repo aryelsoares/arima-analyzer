@@ -17,7 +17,6 @@ export enum MissingValues {
 
 export enum Outliers {
     NONE = "None",
-    SET_MEDIAN = "Set median",
     IQR_SET_MEDIAN = "IQR median",
     IQR_CLAMP = "IQR clamp",
     ZSCORE_CLAMP = "Zscore clamp"

@@ -10,7 +10,7 @@ export default function Score() {
             <h2 className="px-[9%] py-8 bg-bg-second text-3xl font-semibold text-center w-full">Stationarity and Seasonality Scores</h2>
 
             {/* Charts */}
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col lg:flex-row items-center justify-center gap-4">
                 <StationaryGauge />
                 <SeasonalGauge />
             </div>

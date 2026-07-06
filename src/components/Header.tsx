@@ -1,12 +1,12 @@
 // Header
-"use client"
+"use client";
 
 import Image from "next/image";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowDown } from "@fortawesome/free-solid-svg-icons";
 
 export default function Header() {
-    const version = "v1.0"
+    const version = "v1.1"
 
     function scrollToBottom() {
         window.scrollTo({
@@ -16,7 +16,7 @@ export default function Header() {
     }
 
     return (
-        <header className="px-[9%] py-8 bg-bg-second text-[1.6rem]">
+        <header className="px-[9%] py-8 bg-bg-second text-[1.6rem] mb-24">
             <div className="flex items-center justify-between gap-6">
                 {/* Left */}
                 <a href="#" className="flex items-center gap-4">

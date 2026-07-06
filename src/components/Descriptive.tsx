@@ -1,5 +1,5 @@
 // Descriptive
-"use client"
+"use client";
 
 import { TimeSeriesChart } from "./Charts";
 import { DATA } from "../utils/data";
@@ -9,7 +9,7 @@ export default function Descriptive() {
         { label: "N", value: DATA.descStats.n },
         { label: "Mean", value: DATA.descStats.mean.toFixed(DATA.config.precision) },
         { label: "Median", value: DATA.descStats.median.toFixed(DATA.config.precision) },
-        { label: "Fashion", value: DATA.descStats.fashion?.toFixed(DATA.config.precision) },
+        { label: "Mode", value: DATA.descStats.mode?.toFixed(DATA.config.precision) },
         { label: "Deviation", value: DATA.descStats.std.toFixed(DATA.config.precision) },
         { label: "Min", value: DATA.descStats.min.toFixed(DATA.config.precision) },
         { label: "Max", value: DATA.descStats.max.toFixed(DATA.config.precision) }
@@ -20,7 +20,7 @@ export default function Descriptive() {
             {/* Title */}
             <h2 className="px-[9%] py-8 bg-bg-second text-3xl font-semibold text-center w-full">Descriptive Statistics</h2>
 
-            <div className="flex items-center">
+            <div className="w-full flex items-center justify-center">
                 {/* Table */}
                 <table className="border text-lg">
                     <thead>
@@ -39,9 +39,7 @@ export default function Descriptive() {
                     </tbody>
                 </table>
                 {/* Time Series Chart */}
-                <div className="flex-1 min-w-0">
-                    <TimeSeriesChart />
-                </div>
+                <TimeSeriesChart />
             </div>
         </div>
     );

@@ -80,7 +80,7 @@ export function forecast(Y: number[]) {
     /* Descriptive Statistics */
 
     DATA.descStats = {
-        n: Y.length, mean: stats.mean(), median: stats.median(), fashion: stats.fashion(),
+        n: Y.length, mean: stats.mean(), median: stats.median(), mode: stats.mode(),
         std: stats.std(), min: Math.min(...Y), max: Math.max(...Y)
     };
 

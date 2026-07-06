@@ -1,134 +1,10 @@
 // About
-"use client"
+"use client";
 
-import React, { useId, useState } from 'react';
-import { resetData, DATA } from "../utils/data";
+import React, { useState } from 'react';
 import { Duplicates, MissingValues, Outliers, Transform, ConfigType } from '../utils/config';
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowDown, faSpinner } from "@fortawesome/free-solid-svg-icons";
-import { etl } from '../utils/etl';
-import { forecast } from '../utils/forecast';
-import { showError } from "../utils/alert";
-import { ValidationError } from "@/errors/validation";
-
-type CSVInputProps = {
-    setHasData: React.Dispatch<React.SetStateAction<boolean>>
-    loading: boolean;
-    setLoading: React.Dispatch<React.SetStateAction<boolean>>;
-    config: ConfigType
-};
-
-function CSVInput({ setHasData, loading, setLoading, config}: CSVInputProps) {
-    const inputId = useId();
-
-    const handleFile = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const input = event.target;
-        const file = input.files?.[0];
-        if (!file) return;
-
-        setHasData(false);
-        setLoading(true);
-
-        const reader = new FileReader();
-
-        reader.onload = () => {
-            try {
-                resetData();
-
-                const text = reader.result as string;
-
-                const rows = text
-                    .split("\n")
-                    .map(r => r.trim())
-                    .filter(Boolean);
-
-                const header = rows[0].split(",").map(h => h.trim());
-                const xName = header[0];
-                const yName = header[1];
-
-                DATA.xName = xName;
-                DATA.yName = yName;
-
-                const parsed = rows.slice(1).map(line => {
-                    const [dateStr, valueStr] = line.split(",");
-
-                    return {
-                        date: new Date(dateStr.trim()),
-                        value: Number(valueStr.trim())
-                    };
-                });
-
-                const x = parsed.map(p => p.date);
-                const y = parsed.map(p => p.value);
-
-                // Data size validation
-                const minData = 50;
-                const maxData = 10_000;
-                if (y.length < minData || y.length > maxData) {
-                    throw new ValidationError(
-                        "Invalid CSV size",
-                        `File must have between ${minData} and ${maxData} values.
-                Current size: ${y.length}`
-                    );
-                }
-
-                // Prepare Data
-                DATA.config = config;
-
-                // ETL and forecast
-                etl(x, y);
-                forecast(DATA.y);
-
-                setHasData(true);
-            } catch (err) {
-                if (err instanceof ValidationError) {
-                    showError(err.title, err.message);
-                } else if (err instanceof Error) {
-                    showError("Unexpected error", err.message);
-                } else {
-                    showError("Unexpected error", "Unknown error occurred");
-                }
-            } finally {
-                setLoading(false);
-                input.value = "";
-            }
-        };
-
-        reader.readAsText(file);
-    };
-
-    return (
-        <label
-            htmlFor={loading ? undefined : inputId}
-            className={`
-                group inline-flex items-center justify-center
-                w-48 h-48
-                border-2 border-dashed
-                rounded-2xl
-                bg-neutral-500
-                transition
-                ${loading
-                    ? "cursor-not-allowed opacity-60 border-blue-300"
-                    : "cursor-pointer border-blue-200"
-                }
-            `}
-            title={loading ? "Processing..." : "Upload CSV"}
-        >
-            <FontAwesomeIcon
-                icon={loading ? faSpinner : faArrowDown}
-                size="2xl"
-                className={`
-                    transition-colors duration-300
-                    ${loading
-                        ? "text-blue-300 animate-spin"
-                        : "text-neutral-700 group-hover:text-white group-hover:animate-bounce"
-                    }
-                `}
-            />
-            <input id={inputId} type="file" accept=".csv" className="hidden" onChange={handleFile} disabled={loading} />
-        </label>
-    );
-}
+import { CSVInput } from "@/components/Input";
+import { DATA } from "@/utils/data";
 
 type AboutProps = {
     setHasData: React.Dispatch<React.SetStateAction<boolean>>
@@ -138,6 +14,7 @@ type AboutProps = {
 
 export default function About({ setHasData, config, setConfig }: AboutProps) {
     const [loading, setLoading] = useState(false);
+    const hasFile = DATA.fileName !== "";
 
     function handleChange<K extends keyof ConfigType>(key: K, value: ConfigType[K]) {
         setConfig(prev => ({ ...prev, [key]: value }));
@@ -150,11 +27,11 @@ export default function About({ setHasData, config, setConfig }: AboutProps) {
 
     function Field({ label, children }: FieldProps ) {
         return (
-            <div className="flex items-center gap-3">
-                <span className="text-lg text-zinc-400 w-36 text-left my-3">
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+                <span className="text-[10px] lg:text-lg text-zinc-400 w-auto text-left my-3">
                     {label}
                 </span>
-                <div className="flex items-center text-lg h-9 ml-auto">
+                <div className="flex items-center text-[10px] lg:text-lg h-9 ml-auto">
                     {children}
                 </div>
             </div>
@@ -163,6 +40,7 @@ export default function About({ setHasData, config, setConfig }: AboutProps) {
 
     type Primitive = string | number;
     type ConfigSelectProps<T extends Primitive> = {
+        id: string;
         value: T;
         onChange: (value: T) => void
         options: readonly T[] | Record<string, T>;
@@ -170,10 +48,11 @@ export default function About({ setHasData, config, setConfig }: AboutProps) {
     };
 
     function ConfigSelect<T extends Primitive>({
-        value, onChange, options, highlight
+        id, value, onChange, options, highlight
     }: ConfigSelectProps<T>) {
         return (
             <select
+                id={id}
                 value={value}
                 onChange={(e) => onChange(
                     typeof value === 'number'
@@ -203,20 +82,49 @@ export default function About({ setHasData, config, setConfig }: AboutProps) {
 
     return (
         <section className="w-full text-center">
-            <h1 className="text-6xl font-semibold mt-24 mb-12">Welcome to ARIMA Analyser!</h1>
-            <h2 className="text-3xl mb-24">
-                An interactive tool for time series analysis and forecasting based on classical statistical models.
+            {/* Title */}
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-semibold mb-12">
+                Welcome to <span className="text-blue-100">ARIMA Analyser!</span>
+            </h1>
+
+            {/* Description */}
+            <h2 className="text-lg sm:text-2xl md:text-3xl mb-8 mx-12">
+                An interactive tool for time series analysis and forecasting based on univariate ARIMA models.
             </h2>
+
+            {/* Helper */}
+            <p className="text-lg sm:text-2xl md:text-3xl mb-24 mx-12">
+                New here? Check the documentation on{" "}
+                <a
+                    href="https://github.com/aryelsoares/arima-analyzer/wiki"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-200 underline hover:text-blue-100"
+                >
+                    GitHub
+                </a>{" "}
+                to learn how it works.
+            </p>
+
+            {/* Source file */}
+            <p className="text-2xl sm:text-3xl mb-12">
+                Source file: <strong className="text-amber-50">
+                    { hasFile ? DATA.fileName : "None" }
+                </strong>
+            </p>
+
+            {/* Features */}
             <div className="flex justify-center gap-12">
                 {/* ETL */}
-                <div className="w-150 px-4 py-4 border rounded-xl bg-bg-third">
-                    <p className="text-4xl font-semibold mb-4">Data Treatment</p>
-                    <p className="text-2xl mb-8">Update your information.</p>
+                <div className="w-80 lg:w-150 flex flex-col justify-center lg:block px-4 py-4 border rounded-xl bg-bg-third">
+                    <p className="text-2xl sm:text-3xl lg:text-4xl text-blue-200 font-semibold mb-4">Data Treatment</p>
+                    <p className="text-[10px] sm:text-lg lg:text-2xl mb-8">Improves dataset readability</p>
 
-                    <div className="grid grid-cols-2 gap-x-6 gap-y-4 max-w-2xl mx-auto">
+                    <div className="grid lg:grid-cols-2 gap-x-6 gap-y-4 max-w-2xl mx-auto">
                         {/* Missing Values */}
                         <Field label="Missing Values">
                             <ConfigSelect
+                                id={"config-missingValues"}
                                 value={config.missingValues}
                                 onChange={v => handleChange('missingValues', v)}
                                 options={[
@@ -229,6 +137,7 @@ export default function About({ setHasData, config, setConfig }: AboutProps) {
                         {/* Duplicate */}
                         <Field label="Duplication">
                             <ConfigSelect
+                                id={"config-duplicates"}
                                 value={config.duplicates}
                                 onChange={v => handleChange('duplicates', v)}
                                 options={[
@@ -241,10 +150,11 @@ export default function About({ setHasData, config, setConfig }: AboutProps) {
                         {/* Outliers */}
                         <Field label="Outliers">
                             <ConfigSelect
+                                id={"config-outliers"}
                                 value={config.outliers}
                                 onChange={v => handleChange('outliers', v)}
                                 options={[
-                                    Outliers.NONE, Outliers.SET_MEDIAN, Outliers.IQR_SET_MEDIAN,
+                                    Outliers.NONE, Outliers.IQR_SET_MEDIAN,
                                     Outliers.IQR_CLAMP, Outliers.ZSCORE_CLAMP
                                 ]}
                                 highlight={Outliers.NONE}
@@ -253,6 +163,7 @@ export default function About({ setHasData, config, setConfig }: AboutProps) {
                         {/* Transform */}
                         <Field label="Transform">
                             <ConfigSelect
+                                id={"config-transform"}
                                 value={config.transform}
                                 onChange={v => handleChange('transform', v)}
                                 options={[
@@ -264,9 +175,9 @@ export default function About({ setHasData, config, setConfig }: AboutProps) {
                     </div>
                 </div>
                 {/* Input */}
-                <div className="w-80 px-4 py-4 border rounded-xl bg-bg-third">
-                    <p className="text-4xl font-semibold mb-4">Data Injector</p>
-                    <p className="text-2xl mb-4">Insert your CSV below.</p>
+                <div className="w-80 flex flex-col items-center justify-center lg:block px-4 py-4 md:border rounded-xl md:bg-bg-third">
+                    <p className="text-2xl sm:text-3xl md:text-4xl text-blue-200 font-semibold mb-4">Data Injector</p>
+                    <p className="text-[10px] sm:text-lg md:text-2xl mb-4">Insert your CSV below.</p>
                     <CSVInput
                         setHasData={setHasData}
                         setLoading={setLoading}
@@ -275,14 +186,15 @@ export default function About({ setHasData, config, setConfig }: AboutProps) {
                     />
                 </div>
                 {/* Config */}
-                <div className="w-150 px-4 py-4 border rounded-xl bg-bg-third">
-                    <p className="text-4xl font-semibold mb-4">Model Settings</p>
-                    <p className="text-2xl mb-4">Configure analysis behavior.</p>
+                <div className="w-80 lg:w-150 flex flex-col justify-center lg:block px-4 py-4 border rounded-xl bg-bg-third">
+                    <p className="text-2xl sm:text-3xl lg:text-4xl text-blue-200 font-semibold mb-4">Model Settings</p>
+                    <p className="text-[10px] sm:text-lg lg:text-2xl mb-4">Configure analysis behavior.</p>
 
-                    <div className="grid grid-cols-2 gap-x-6 gap-y-4 max-w-2xl mx-auto">
+                    <div className="grid lg:grid-cols-2 gap-x-6 gap-y-4 max-w-2xl mx-auto">
                         {/* Split Size */}
                         <Field label="Split-Size">
                             <ConfigSelect
+                                id={"config-splitSize"}
                                 value={config.splitSize}
                                 onChange={v => handleChange('splitSize', v)}
                                 options={{
@@ -295,6 +207,7 @@ export default function About({ setHasData, config, setConfig }: AboutProps) {
                         {/* Precision */}
                         <Field label="Precision">
                             <ConfigSelect
+                                id={"config-precision"}
                                 value={config.precision}
                                 onChange={v => handleChange('precision', v)}
                                 options={[1, 2, 3, 4, 5, 6]}
@@ -304,6 +217,7 @@ export default function About({ setHasData, config, setConfig }: AboutProps) {
                         {/* Lag Amount */}
                         <Field label="Lag Amount">
                             <ConfigSelect
+                                id={"config-lagAmount"}
                                 value={config.lagAmount}
                                 onChange={v => handleChange('lagAmount', v)}
                                 options={{
@@ -315,6 +229,7 @@ export default function About({ setHasData, config, setConfig }: AboutProps) {
                         {/* Significance */}
                         <Field label="Significance">
                             <ConfigSelect
+                                id={"config-significance"}
                                 value={config.significance}
                                 onChange={v => handleChange('significance', v)}
                                 options={{
@@ -326,6 +241,7 @@ export default function About({ setHasData, config, setConfig }: AboutProps) {
                         {/* Stationary Score */}
                         <Field label="Stationary Score">
                             <ConfigSelect
+                                id={"config-stationaryScore"}
                                 value={config.stationaryScore}
                                 onChange={v => handleChange('stationaryScore', v)}
                                 options={{
@@ -337,6 +253,7 @@ export default function About({ setHasData, config, setConfig }: AboutProps) {
                         {/* Seasonal Score */}
                         <Field label="Seasonal Score">
                             <ConfigSelect
+                                id={"config-seasonalScore"}
                                 value={config.seasonalScore}
                                 onChange={v => handleChange('seasonalScore', v)}
                                 options={{

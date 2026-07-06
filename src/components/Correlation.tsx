@@ -1,5 +1,5 @@
 // Correlation
-"use client"
+"use client";
 
 import { CorrelationChart } from "./Charts";
 import { DATA } from "../utils/data";
@@ -13,14 +13,14 @@ export default function Correlation() {
             <h2 className="px-[9%] py-8 bg-bg-second text-3xl font-semibold text-center w-full"> Correlation </h2>
 
             {/* Correlation Charts */}
-            <div className="flex items-center gap-4">
+            <div className="w-full flex flex-col lg:flex-row items-center gap-4">
                 <CorrelationChart seasonal={false} partial={false} />
                 <CorrelationChart seasonal={false} partial={true} />
             </div>
 
             {/* Seasonal Correlation Chart */}
             {isSeasonal && (
-                <div className="flex items-center gap-4 mt-4">
+                <div className="w-full flex flex-col lg:flex-row items-center gap-4 mt-4">
                     <CorrelationChart seasonal={true} partial={false} />
                     <CorrelationChart seasonal={true} partial={true} />
                 </div>

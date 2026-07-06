@@ -31,8 +31,8 @@ export class Stats {
         return this.sum() / this.size;
     }
 
-    // Fashion
-    fashion(): number | null {
+    // Mode
+    mode(): number | null {
         const freq = new Map<number, number>();
 
         for (const value of this.data) {
@@ -857,23 +857,24 @@ export class AutoARIMA {
             const residuals = this.test.map((t, i) => t - pred[i]);
             this._residuals = residuals;
 
-            const tester = new Tester(residuals);
-            //const corrDist = tester.ljungBox(p, d, q, P, D, Q, lagAmount, significance).reject;
-
-            //if (!corrDist) continue;
-
             // Metrics
             const metric = new Metrics(this.test, pred);
 
             const mase = metric.mase();
             const u2 = metric.u2();
 
+            // Get rid of models with bad metrics
             if (mase > 2.5 || u2 > 2.5) continue;
 
+            // Penalty
+            const componentPenalty = 0.02;
+            const diffPenalty = 0.2;
+            const seasonalDiffPenalty = 0.4;
+
             const complexityPenalty = 
-                0.05 * (p + q + P + Q) +
-                0.3 * d +
-                0.6 * D
+                componentPenalty * (p + q + P + Q) +
+                diffPenalty * d +
+                seasonalDiffPenalty * D
             ;
             
             const score =

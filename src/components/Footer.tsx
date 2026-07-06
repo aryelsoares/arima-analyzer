@@ -1,5 +1,5 @@
 // Footer
-"use client"
+"use client";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowUp } from "@fortawesome/free-solid-svg-icons";
@@ -15,7 +15,7 @@ export default function Footer() {
     }
 
     return (
-        <footer className="px-[9%] py-8 bg-bg-second text-[1.6rem]">
+        <footer className="px-[9%] py-8 bg-bg-second text-[1.2rem] md:text-[1.6rem] mt-24">
             <div className="flex items-center justify-between gap-6">
                 {/* Left */}
                 <p className="opacity-80">

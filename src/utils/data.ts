@@ -1,7 +1,7 @@
 // Data
 import { ConfigType, CONFIG } from "./config";
 
-type DescType = {n: number, mean: number, median: number, fashion: number | null, std: number, min: number, max: number};
+type DescType = {n: number, mean: number, median: number, mode: number | null, std: number, min: number, max: number};
 type DistType = {normal: number[], skew: number, kurtosis: number};
 type SeasonalType = {score: number, period: number, acfStrength: number, peakConsistency: number, cycleScore: number};
 type RollingType = {mean: number[], std: number[]};
@@ -15,6 +15,7 @@ type RsdDistType = {Q_theoretical: number[], Q_empirical: number[], jb_score: nu
 type RsdCorrType = {correlation: {lags: number[], lower: number, upper: number}, score: number, reject: boolean}
 
 export type DataType = {
+  fileName: string,
   xName: string, yName: string,
   x: Date[], y: number[],
   descStats: DescType,
@@ -40,9 +41,10 @@ export type DataType = {
 
 export function resetData(): DataType {
   return ({
+    fileName: "",
     xName: "", yName: "",
     x: [], y: [],
-    descStats: {n: 0, mean: 0, median: 0, fashion: 0, std: 0, min: 0, max: 0},
+    descStats: {n: 0, mean: 0, median: 0, mode: 0, std: 0, min: 0, max: 0},
     distStats: {normal: [], skew: 0, kurtosis: 0},
     seasonalStats: {score: 0, period: 0, acfStrength: 0, peakConsistency: 0, cycleScore: 0},
     rollingStats: {mean: [], std: []},
