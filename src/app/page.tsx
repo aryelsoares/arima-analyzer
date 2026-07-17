@@ -11,6 +11,7 @@ import Correlation from "@/components/Correlation";
 import Prediction from "@/components/Prediction";
 import Metric from "@/components/Metric";
 import Residual from "@/components/Residual";
+import Record from "@/components/Record";
 
 export default function Home() {
   const [hasData, setHasData] = useState(false);
@@ -32,6 +33,7 @@ export default function Home() {
           <Metric />
           <Residual />
           <Prediction />
+          <Record />
         </>
       )}
 

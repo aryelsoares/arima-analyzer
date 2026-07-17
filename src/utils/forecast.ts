@@ -3,74 +3,37 @@
 import { DATA } from "./data";
 import { Stats, Tester, AutoARIMA } from "./statistics";
 
-const MAX_P = 10;
+const MAX_P = 8;
 const MAX_D = 4;
-const MAX_Q = 10;
+const MAX_Q = 8;
 
 const MAX_SP = Math.floor(MAX_P / 2);
 const MAX_SD = Math.floor(MAX_D / 2);
-const MAX_SQ = Math.floor(MAX_D / 2);
+const MAX_SQ = Math.floor(MAX_Q / 2);
 
-// Estimate p / P
-function estimateP(
-    pacf: number[],
+function estimateComponent(
+    lags: number[],
     lower: number,
     upper: number,
-    maxP: number = 10
+    maxComponent: number,
+    period?: number
 ): number {
-    let bestP = 0;
+    period = period || 1;
 
-    for (let k = 1; k <= maxP; k++) {
-        if (k >= pacf.length) break;
+    let idx = period === 1 ? 0 : 1;
+    let bestK = 0;
 
-        if (pacf[k] < lower || pacf[k] > upper) {
-            bestP = k;
+    for (let k = idx; k <= maxComponent; k += period) {
+        if (k >= lags.length) break;
+
+        if (lags[k] < lower || lags[k] > upper) {
+            bestK++;
         } else {
             break;
         }
     }
 
-    return bestP;
-}
-
-// Estimate q / Q
-function estimateQ(
-    acf: number[],
-    lower: number,
-    upper: number,
-    maxQ: number = 10
-): number {
-    const MAX_GAP = 1;
-    const MIN_BLOCK_RATIO = 0.6;
-    let bestQ = 0
-
-    for (let q = 1; q <= Math.min(acf.length - 1, maxQ); q++) {
-        let significant = 0;
-        let gap = 0;
-
-        for (let i = 1; i <= q; i++) {
-            if (i >= acf.length) break;
-
-            if (acf[i] < lower || acf[i] > upper) {
-                significant++;
-            } else {
-                gap++;
-                if (gap > MAX_GAP) break;
-            }
-        }
-
-        const ratio = significant / q;
-
-        const cutoff =
-            q + 1 >= acf.length ||
-            !(acf[q + 1] < lower || acf[q + 1] > upper);
-        
-        if (ratio >= MIN_BLOCK_RATIO && cutoff) {
-            bestQ = q;
-        }
-    }
-
-    return bestQ;
+    return bestK;
 }
 
 /* Forecast */
@@ -92,7 +55,7 @@ export function forecast(Y: number[]) {
 
     /* Seasonality */
 
-    const seasonality = stats.seasonalityScore(2, 30);
+    const seasonality = stats.seasonalityScore(2, 30, DATA.config.significance);
 
     DATA.seasonalStats = {
         score: seasonality.score, period: seasonality.period,
@@ -153,8 +116,8 @@ export function forecast(Y: number[]) {
         upper: pacfTest.upper
     };
 
-    DATA.arimaParams.p = estimateP(pacfTest.lags, pacfTest.lower, pacfTest.upper, MAX_P);
-    DATA.arimaParams.q = estimateQ(acfTest.lags, acfTest.lower, acfTest.upper, MAX_Q);
+    DATA.arimaParams.p = estimateComponent(pacfTest.lags, pacfTest.lower, pacfTest.upper, MAX_P);
+    DATA.arimaParams.q = estimateComponent(acfTest.lags, acfTest.lower, acfTest.upper, MAX_Q);
 
     /* Seasonality Detection */
 
@@ -183,8 +146,8 @@ export function forecast(Y: number[]) {
             DATA.arimaParams.D++;
         }
 
-        const sacfTest = new Stats(seasonalStationarySeries).acf(DATA.config.lagAmount, DATA.config.significance);
-        const spacfTest = new Stats(seasonalStationarySeries).pacf(DATA.config.lagAmount, DATA.config.significance);
+        const sacfTest = new Stats(seasonalStationarySeries).acf(Math.min(Y.length, seasonality.period * MAX_SP + 1), DATA.config.significance);
+        const spacfTest = new Stats(seasonalStationarySeries).pacf(Math.min(Y.length, seasonality.period * MAX_SQ + 1), DATA.config.significance);
 
         // SACF
         DATA.sacfStats = {
@@ -200,9 +163,8 @@ export function forecast(Y: number[]) {
             upper: spacfTest.upper
         }
 
-        DATA.arimaParams.P = estimateP(spacfTest.lags.filter(l => l % seasonality.period === 0), spacfTest.lower, spacfTest.upper, MAX_SP);
-        DATA.arimaParams.Q = estimateQ(sacfTest.lags.filter(l => l % seasonality.period === 0), sacfTest.lower, sacfTest.upper, MAX_SQ);
-        DATA.arimaParams.s = seasonality.period;
+        DATA.arimaParams.P = estimateComponent(spacfTest.lags, spacfTest.lower, spacfTest.upper, MAX_SP, seasonality.period);
+        DATA.arimaParams.Q = estimateComponent(sacfTest.lags, spacfTest.lower, spacfTest.upper, MAX_SQ, seasonality.period);
     }
 
     /* Prediction */
@@ -221,6 +183,9 @@ export function forecast(Y: number[]) {
     DATA.splitData = {
         train: arima.train, test: arima.test, rsd: arima.residuals
     };
+
+    // All model results
+    DATA.results = arima.results;
 
     const param = model.params;
 

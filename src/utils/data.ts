@@ -12,7 +12,32 @@ type ArimaType = {p: number, d: number, q: number, P: number, D: number, Q: numb
 type PredType = {data: number[], interval: number[]};
 type MetricType = {mae: number, rmse: number, mase: number, r2: number, u2: number};
 type RsdDistType = {Q_theoretical: number[], Q_empirical: number[], jb_score: number, isNormal: boolean};
-type RsdCorrType = {correlation: {lags: number[], lower: number, upper: number}, score: number, reject: boolean}
+type RsdCorrType = {correlation: {lags: number[], lower: number, upper: number}, score: number, reject: boolean};
+
+export interface Candidate {
+    p: number;
+    d: number;
+    q: number;
+    P: number;
+    D: number;
+    Q: number;
+    s: number;
+
+    mae: number;
+    rmse: number;
+    r2: number;
+    u2: number;
+    mase: number;
+
+    aic: number;
+    bic: number;
+    hqc: number;
+
+    corr: {score: number, reject: boolean};
+    norm: {jb: number, isNormal: boolean};
+
+    score: number;
+}
 
 export type DataType = {
   fileName: string,
@@ -31,6 +56,7 @@ export type DataType = {
   sacfStats: CorrelationType,
   spacfStats: CorrelationType,
   splitData: SplitType,
+  results: Candidate[],
   arimaParams: ArimaType,
   predValues: PredType,
   metricStats: MetricType,
@@ -57,12 +83,13 @@ export function resetData(): DataType {
     sacfStats: {lags: [], lower: 0, upper: 0},
     spacfStats: {lags: [], lower: 0, upper: 0},
     splitData: {train: [], test: [], rsd: []},
+    results: [{p: 0, d: 0, q: 0, P: 0, D: 0, Q: 0, s: 0, mae: 0, rmse: 0, r2: 0, u2: 0, mase: 0, aic: 0, bic: 0, hqc: 0, corr: {score: 0, reject: false}, norm: {jb: 0, isNormal: false}, score: 0}],
     arimaParams: {p: 0, d: 0, q: 0, P: 0, D: 0, Q: 0, s: 0},
     predValues: {data: [], interval: []},
     metricStats: {mae: 0, rmse: 0, mase: 0, r2: 0, u2: 0},
     rsdDist: {Q_theoretical: [], Q_empirical: [], jb_score: 0, isNormal: false},
     rsdCorr: {correlation: { lags: [], lower: 0, upper: 0 }, score: 0, reject: false},
-    config: CONFIG
+    config: { ...CONFIG }
   });
 }
 

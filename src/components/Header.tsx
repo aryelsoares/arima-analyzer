@@ -6,7 +6,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowDown } from "@fortawesome/free-solid-svg-icons";
 
 export default function Header() {
-    const version = "v1.1"
+    const version = "v1.2"
 
     function scrollToBottom() {
         window.scrollTo({

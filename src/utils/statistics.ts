@@ -1,5 +1,6 @@
 // Statistics
 import ARIMA from 'arima';
+import { Candidate } from "@/utils/data";
 import { ValidationError } from "@/errors/validation";
 
 export class Stats {
@@ -483,7 +484,7 @@ export class Stats {
     }
 
     // Seasonality Score
-    seasonalityScore(minPeriod: number = 2, maxPeriod: number = 60): {
+    seasonalityScore(minPeriod: number = 2, maxPeriod: number = 60, significance: number = 0.05): {
         score: number,
         period: number,
         components: {acfStrength: number, peakConsistency: number, cycleScore: number}
@@ -518,7 +519,11 @@ export class Stats {
 
         // Very weak signal
         const N = detrend.length;
-        const acfNoise = 1.96 / Math.sqrt(N);
+
+        let z = 1.96;
+        if (significance === 0.01) z = 2.576;
+        else if (significance === 0.10) z = 1.645;
+        const acfNoise = z / Math.sqrt(N);
 
         if (maxAcf < acfNoise) {
             return { score: 0, period: 0, components: {acfStrength: 0, peakConsistency: 0, cycleScore: 0} };
@@ -598,6 +603,8 @@ export class Stats {
             }
         };
     }
+
+    
 }
 
 // Metrics
@@ -765,10 +772,6 @@ interface AutoARIMAParams {
     p: number, d: number, q: number, P: number, D: number, Q: number, s: number;
 }
 
-interface InternalBest extends AutoARIMAParams {
-    score: number;
-}
-
 interface AutoARIMAMetrics {
     mae: number, rmse: number, mase: number, r2: number, u2: number;
 }
@@ -787,12 +790,15 @@ export class AutoARIMA {
     private _params!: AutoARIMAParams;
     private _metrics!: AutoARIMAMetrics;
     private _residuals!: number[];
+    private _results!: Candidate[];
     private _fitted = false;
 
     constructor(data: number[], size: number) {
         const split = Math.floor(data.length * size);
         this._train = data.slice(0, split);
         this._test = data.slice(split);
+
+        this._results = [];
     }
 
     get train(): number[] {
@@ -804,18 +810,51 @@ export class AutoARIMA {
     }
 
     get params(): AutoARIMAParams {
-        if (!this._fitted) throw new ValidationError("Invalid AutoARIMA", "Params not adjusted");
         return this._params;
     }
 
     get metrics(): AutoARIMAMetrics {
-        if (!this._fitted) throw new ValidationError("Invalid AutoARIMA", "Metrics not adjusted");
         return this._metrics;
     }
 
     get residuals(): number[] {
-        if (!this._fitted) throw new ValidationError("Invalid AutoARIMA", "Residuals not adjusted");
         return this._residuals;
+    }
+
+    get results(): Candidate[] {
+        return this._results;
+    }
+
+    normalize(value: number, min: number, max: number): number {
+        if (max === min) {
+            return 0;
+        }
+
+        return (value - min) / (max - min);
+    }
+
+    logLikelihood(residuals: number[]): number {
+        const n = residuals.length;
+        const sse = residuals.reduce((sum, e) => sum + e * e);
+        const sigma2 = sse / n;
+
+        return -0.5 * n * (Math.log(2 * Math.PI) + Math.log(sigma2) + 1);
+    }
+
+    criteria(residuals: number[], p: number, d: number, q: number, P: number, D: number, Q: number): {"AIC": number, "BIC": number, "HQC": number} {
+        const ll = this.logLikelihood(residuals);
+        const n = residuals.length;
+
+        let k = p + q + P + Q + 1;
+        if (d === 0 && D == 0) {
+            k++;
+        }
+
+        const aic = 2 * k - 2 * ll;
+        const bic = k * Math.log(n) - 2 * ll;
+        const hqc = 2 * k * Math.log(Math.log(n)) - 2 * ll;
+        
+        return {"AIC": aic, "BIC": bic, "HQC": hqc};
     }
 
     fit(options: {
@@ -833,8 +872,6 @@ export class AutoARIMA {
             maxP, maxD, maxQ, maxSP = 0, maxSD = 0, maxSQ = 0, period = 0, lagAmount = 20, significance = 0.05
         } = options;
 
-        let best: InternalBest | null = null;
-
         const orders = [];
         for (let p = 0; p <= maxP; p++)
             for (let d = 0; d <= maxD; d++)
@@ -850,68 +887,115 @@ export class AutoARIMA {
                 p, d, q, P, D, Q, s: period, verbose: false
             }).train(this.train);
 
+            // Pred
             const [pred] = model.predict(this.test.length);
+
             model.destroy();
 
             // Residuals
             const residuals = this.test.map((t, i) => t - pred[i]);
-            this._residuals = residuals;
+
+            // Get criteria metrics
+            const criteria = this.criteria(residuals, p, d, q, P, D, Q);
+            const aic = criteria.AIC;
+            const bic = criteria.BIC;
+            const hqc = criteria.HQC;
+
+            if (Number.isNaN(aic) || Number.isNaN(bic) || Number.isNaN(hqc)) {
+                continue;
+            }
 
             // Metrics
             const metric = new Metrics(this.test, pred);
-
-            const mase = metric.mase();
+            const mae = metric.mae();
+            const rmse = metric.rmse();
+            const r2 = metric.r2();
             const u2 = metric.u2();
+            const mase = metric.mase();
 
-            // Get rid of models with bad metrics
-            if (mase > 2.5 || u2 > 2.5) continue;
+            if (u2 > 1.0 || mase > 1.0) {
+                continue;
+            }
 
-            // Penalty
-            const componentPenalty = 0.02;
-            const diffPenalty = 0.2;
-            const seasonalDiffPenalty = 0.4;
+            // Residual autocorrelation score
+            const tester = new Tester(residuals);
 
-            const complexityPenalty = 
-                componentPenalty * (p + q + P + Q) +
-                diffPenalty * d +
-                seasonalDiffPenalty * D
-            ;
-            
+            const acf = new Stats(residuals).acf(lagAmount, significance);
+            const corr = tester.residualCorrScore(acf);
+            const norm = tester.jarqueBeraTest(significance);
+
+            this._results.push({
+                p, d, q,
+                P, D, Q,
+                s: period,
+
+                mae,
+                rmse,
+                r2,
+                u2,
+                mase,
+
+                aic: aic,
+                bic: bic,
+                hqc: hqc,
+
+                corr: corr,
+                norm: norm,
+
+                score: 0
+            })
+        }
+
+        const minAIC = Math.min(...this.results.map(c => c.aic));
+        const maxAIC = Math.max(...this.results.map(c => c.aic));
+
+        const minBIC = Math.min(...this.results.map(c => c.bic));
+        const maxBIC = Math.max(...this.results.map(c => c.bic));
+
+        const minHQC = Math.min(...this.results.map(c => c.hqc));
+        const maxHQC = Math.max(...this.results.map(c => c.hqc));
+
+        let best: Candidate | null = null;
+        let bestScore = 1.0;
+
+        for (const c of this.results) {
+            const nAIC = this.normalize(c.aic, minAIC, maxAIC);
+            const nBIC = this.normalize(c.bic, minBIC, maxBIC);
+            const nHQC = this.normalize(c.hqc, minHQC, maxHQC);
+
+            const information = (nAIC + nBIC + nHQC) / 3;
+
+            // Score -> 0
             const score =
-                Math.log1p(Math.max(0, mase - 1)) +
-                Math.log1p(Math.max(0, u2 - 1)) +
-                complexityPenalty;
+                    0.45 * c.mase
+                +   0.30 * c.u2
+                +   0.15 * (1 - c.corr.score)
+                +   0.10 * information;
 
-            if (
-                !best ||
-                score < best.score ||
-                (
-                    Math.abs(score - best.score) < 0.05 &&
-                    (d + D) < (best.d + best.D)
-                )
-            ) {
-                const mae = metric.mae();
-                const rmse = metric.rmse();
-                const r2 = metric.r2();
-
-                best = {
-                    p, d, q,
-                    P, D, Q, s: period,
-                    score
-                };
-
-                this._metrics = {
-                    mae, rmse, mase, r2, u2
-                };
+            c.score = score;
+            
+            if (score < bestScore) {
+                bestScore = score;
+                best = c;
             }
         }
 
+        // Missing best model
         if (!best) {
             throw new ValidationError("No valid ARIMA model found", "Hint: Try different settings.", false);
         }
 
-        const { score, ...params } = best;
-        this._params = params;
+        const bestModel = new ARIMA({
+            p: best.p, d: best.d, q: best.q, P: best.P, D: best.D, Q: best.Q, s: period, verbose: false
+        }).train(this.train);
+
+        const [pred] = bestModel.predict(this.test.length);
+        bestModel.destroy();
+
+        this._params = {p: best.p, d: best.d, q: best.q, P: best.P, D: best.D, Q: best.Q, s: period};
+        this._metrics = {mae: best.mae, rmse: best.rmse, r2: best.r2, u2: best.u2, mase: best.mase};
+        this._residuals = this.test.map((t, i) => t - pred[i]);
+
         this._fitted = true;
 
         return this;
@@ -919,7 +1003,7 @@ export class AutoARIMA {
 
     // Predict
     predict(steps: number): [number[], number[]]  {
-        const data = [...this.train, ...this.test];
+        const data = [...this._train, ...this._test];
 
         const model = new ARIMA({
             ...this._params,

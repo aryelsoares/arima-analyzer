@@ -1,7 +1,7 @@
 // Correlation
 "use client";
 
-import { CorrelationChart } from "./Charts";
+import { CorrelationChart, SeasonalCorrelationChart } from "./Charts";
 import { DATA } from "../utils/data";
 
 export default function Correlation() {
@@ -14,15 +14,15 @@ export default function Correlation() {
 
             {/* Correlation Charts */}
             <div className="w-full flex flex-col lg:flex-row items-center gap-4">
-                <CorrelationChart seasonal={false} partial={false} />
-                <CorrelationChart seasonal={false} partial={true} />
+                <CorrelationChart partial={false} />
+                <CorrelationChart partial={true} />
             </div>
 
             {/* Seasonal Correlation Chart */}
             {isSeasonal && (
                 <div className="w-full flex flex-col lg:flex-row items-center gap-4 mt-4">
-                    <CorrelationChart seasonal={true} partial={false} />
-                    <CorrelationChart seasonal={true} partial={true} />
+                    <SeasonalCorrelationChart partial={false} />
+                    <SeasonalCorrelationChart partial={true} />
                 </div>
             )}
         </div>

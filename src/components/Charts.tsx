@@ -284,14 +284,11 @@ export function SeasonalGauge() {
 }
 
 interface PartialCorrelation {
-    seasonal: boolean,
     partial: boolean
 }
 
-export function CorrelationChart({seasonal, partial}: PartialCorrelation) {
-    const corr = seasonal ?
-        (partial ? DATA.spacfStats : DATA.sacfStats) :
-        (partial ? DATA.pacfStats : DATA.acfStats);
+export function CorrelationChart({partial}: PartialCorrelation) {
+    const corr = partial ? DATA.pacfStats : DATA.acfStats;
 
     const lags = corr.lags;
     const upper = corr.upper;
@@ -388,10 +385,9 @@ export function CorrelationChart({seasonal, partial}: PartialCorrelation) {
         showlegend: false
     };
 
-    const name = seasonal ? (partial ? "SPACF" : "SACF") : (partial ? "PACF" : "ACF");
-    const title = { text: seasonal ?
-        (partial ? "Seasonal Partial Autocorrelation - SAR(P)" : "Seasonal Autocorrelation - SMA(Q)") :
-        (partial ? "Partial Autocorrelation - AR(p)" : "Autocorrelation - MA(q)")
+    const name = partial ? "PACF" : "ACF";
+    const title = { text: 
+        partial ? "Partial Autocorrelation - AR(p)" : "Autocorrelation - MA(q)"
     }
 
     const data: Data[] = [
@@ -420,6 +416,163 @@ export function CorrelationChart({seasonal, partial}: PartialCorrelation) {
         plot_bgcolor: "transparent",
         font: { color: textColor }
     }
+
+    return (
+        <Plot
+            data={data}
+            layout={layout}
+            style={{ width: "100%", height: "400px" }}
+            useResizeHandler
+        />
+    );
+}
+
+// Seasonal Correlation Chart
+export function SeasonalCorrelationChart({partial}: PartialCorrelation) {
+    const corr = partial ? DATA.spacfStats : DATA.sacfStats;
+
+    const lags = corr.lags;
+    const upper = corr.upper;
+    const lower = corr.lower;
+
+    const x = Array.from({ length: lags.length }, (_, i) => i);
+
+    const stems = x.map((lag, i) => ({
+        x: [lag, lag],
+        y: [0, lags[i]],
+        mode: "lines",
+        line: { color: 'blue', width: 2 },
+        showlegend: false
+    }));
+
+    const zeroLag: Data = {
+        x: [0],
+        y: [lags[0]],
+        mode: "markers",
+        marker: {
+            symbol: "x",
+            size: 12,
+            color: "red"
+        },
+        showlegend: false
+    };
+
+    const ignoredLags = [];
+    const seasonalInsideCI = [];
+    const seasonalOutsideCI = [];
+
+    for (let i = 1; i < lags.length; i++) {
+        const value = lags[i];
+
+        if (i % DATA.seasonalStats.period === 0) {
+            if (value >= lower && value <= upper) {
+                seasonalInsideCI.push({ lag: i, value });
+            } else {
+                seasonalOutsideCI.push({ lag: i, value });
+            }
+        } else {
+            ignoredLags.push({ lag: i, value });
+        }
+    }
+
+    const ignoredTrace: Data = {
+        x: ignoredLags.map(d => d.lag),
+        y: ignoredLags.map(d => d.value),
+        mode: "markers",
+        marker: {
+            size: 6,
+            color: "gray"
+        },
+        legendgroup: "marker",
+        showlegend: false
+    }
+
+    const seasonalInsideTrace: Data = {
+        x: seasonalInsideCI.map(d => d.lag),
+        y: seasonalInsideCI.map(d => d.value),
+        mode: "markers",
+        marker: {
+            size: 12,
+            color: "red"
+        },
+        showlegend: false
+    };
+
+    const seasonalOutsideTrace: Data = {
+        x: seasonalOutsideCI.map(d => d.lag),
+        y: seasonalOutsideCI.map(d => d.value),
+        mode: "markers",
+        marker: {
+            size: 12,
+            color: "green"
+        },
+        name: "Significant",
+        legendgroup: "marker",
+        showlegend: true
+    };
+
+    const ciUpper: Data = {
+        x,
+        y: Array(x.length).fill(upper),
+        mode: "lines",
+        line: { dash: "dash", color: "gray" },
+        legendgroup: "ci",
+        name: "Confidence Interval",
+        showlegend: true
+    };
+
+    const ciMargin: Data = {
+        x,
+        y: Array(x.length).fill(lower),
+        mode: "lines",
+        line: { width: 0 },
+        fill: "tonexty",
+        fillcolor: "rgba(169, 169, 169, 0.1)",
+        legendgroup: "ci",
+        showlegend: false
+    };
+
+    const ciLower: Data = {
+        x,
+        y: Array(x.length).fill(lower),
+        mode: "lines",
+        line: { dash: "dash", color: "gray" },
+        legendgroup: "ci",
+        showlegend: false
+    };
+
+    const name = partial ? "SPACF" : "SACF";
+    const title = { text: 
+        partial ? "Seasonal Partial Autocorrelation - SAR(P)" : "Seasonal Autocorrelation - SMA(Q)" 
+    };
+
+    const data: Data[] = [
+        ...stems,
+        {
+            x,
+            y: lags,
+            marker: { size: 6 },
+            name: name
+        },
+        
+        zeroLag,
+        ignoredTrace,
+        seasonalInsideTrace,
+        seasonalOutsideTrace,
+
+        ciUpper,
+        ciMargin,
+        ciLower
+    ];
+
+    const layout: Partial<Layout> = {
+        title: title,
+        xaxis: { title: { text: "Lag" }, dtick: 1, showgrid: false },
+        yaxis: { title: { text: "Correlation" }, range: [-1.15, 1.15], showgrid: false },
+        paper_bgcolor: "transparent",
+        plot_bgcolor: "transparent",
+        font: { color: textColor }
+    };
 
     return (
         <Plot
